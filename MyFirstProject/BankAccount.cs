@@ -1,15 +1,18 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 
 namespace MyFirstProject
 {
-    internal abstract class BankAccount
+    public abstract class BankAccount
     {
         protected List<Transaction> allTransactions = new List<Transaction>();
         private static int accountNumberSeed = 1234567890;
 
         public string Owner { get; set; }
         public string AccountNumber { get; private set; }
+
+        [JsonProperty]
         public decimal Balance { get; protected set; }
 
         public BankAccount(string name, decimal initialBalance)

@@ -1,72 +1,59 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace MyFirstProject
+namespace MyFirstProject // Check if your namespace is 'Learning' or 'MyFirstProject'
 {
     internal class Program
     {
         private static void Main(string[] args)
         {
-            Console.WriteLine("🏦 WELCOME TO THE BANKING SIMULATION 🏦");
+            Console.WriteLine("WELCOME TO THE BANKING SIMULATION");
             Console.WriteLine("----------------------------------------");
 
-            // 1. Create the accounts (Polymorphism: Different types in one list!)
-            var accounts = new List<BankAccount>
-            {
-                new InterestEarningAccount("Savings-Standard", 1000),
-                new GiftCardAccount("GiftCard-Birthday", 100),
-                new LineOfCreditAccount("Credit-Emergency", 0)
-            };
+            // 1. LOAD DATA (The "Thaw" Step)
+            // We try to load previous accounts from the hard drive.
+            List<BankAccount> accounts = DataService.LoadAccounts();
 
-            // 2. SIMULATE ACTIVITY (Spending and Saving)
-            Console.WriteLine("running transactions...");
+            // 2. CHECK IF NEW
+            // If the list is empty (first time running), we add default accounts.
+            if (accounts.Count == 0)
+            {
+                Console.WriteLine("No saved data found. Creating new accounts...");
+                accounts.Add(new InterestEarningAccount("Savings-Standard", 1000));
+                accounts.Add(new GiftCardAccount("GiftCard-Birthday", 100));
+                accounts.Add(new LineOfCreditAccount("Credit-Emergency", 0));
+            }
+            else
+            {
+                Console.WriteLine("Loaded saved data! Welcome back.");
+            }
+
+            // 3. SHOW CURRENT STATE
+            Console.WriteLine("\nCURRENT BALANCES:");
+            foreach (var acc in accounts)
+            {
+                Console.WriteLine($"   {acc.Owner}: {acc.Balance}");
+            }
+
+            // 4. SIMULATE ACTIVITY
+            Console.WriteLine("\nRunning Transactions...");
             foreach (var account in accounts)
             {
-                // Checking the type to do specific things!
                 if (account is LineOfCreditAccount)
-                {
-                    // Force the credit line into debt to test the fee
-                    account.Withdraw(50);
-                }
+                    account.Withdraw(10);
                 else if (account is InterestEarningAccount)
-                {
-                    // Add more savings to test interest calculation
-                    account.Deposit(500);
-                }
-                else // It must be a Gift Card
-                {
-                    // Spend some of the gift card
-                    account.Withdraw(20);
-                }
-
-                // Show the balance after the transaction
-                Console.WriteLine($"[Account: {account.Owner}] Current Balance: {account.Balance}");
+                    account.Deposit(50);
+                else
+                    account.Withdraw(5);
             }
+
+            // 5. SAVE DATA (The "Freeze" Step)
+            // Before we quit, we save the new numbers to the file.
+            DataService.SaveAccounts(accounts);
+            Console.WriteLine("\nData has been saved to 'bank_data.json'");
 
             Console.WriteLine("\n----------------------------------------");
-            Console.WriteLine("END OF MONTH PROCESSING...");
-            Console.WriteLine("----------------------------------------");
-
-            // 3. TRIGGER MONTH-END
-            foreach (var account in accounts)
-            {
-                // This one line behaves differently for every object!
-                account.PerformMonthEndTransactions();
-
-                Console.WriteLine($"   Account: {account.Owner}");
-                Console.WriteLine($"   Final Balance: {account.Balance}");
-                Console.WriteLine("   ----------------");
-                Console.WriteLine();
-            }
-
-            // 4. PRINT HISTORY
-            foreach (var account in accounts)
-            {
-                Console.WriteLine(account.GetAccountHistory());
-                Console.WriteLine("........................................\n");
-            }
-
-            Console.Write("Press any key to close...");
+            Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
         }
     }
