@@ -1,4 +1,3 @@
--- COPY THIS INTO DbSetup.sql
 CREATE DATABASE BankingDb;
 GO
 USE BankingDb;
