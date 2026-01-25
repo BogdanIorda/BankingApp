@@ -1,57 +1,36 @@
-﻿using Newtonsoft.Json; // The tool we just installed
+﻿using BankApp_Ultimate; // Needed to see 'BankContext'
 using System.Collections.Generic;
-using System.IO; // Needed to talk to the Hard Drive
+using System.Linq;
 
-namespace MyFirstProject
+namespace MyFirstProject // Keep your original namespace
 {
-    // We make this 'static' because it's just a utility tool helper.
-    // We don't need to create 'new DataService()', we just use its tools.
     public static class DataService
     {
-        // The name of the file where we will save data
-        private static string filePath = "bank_data_v1.json";
-
-        // METHOD: SAVE (The "Freeze" Ray)
-        public static void SaveAccounts(List<BankAccount> accounts)
-        {
-            // Because 'BankAccount' is Abstract, we must tell JSON to remember
-            // exactly which Child Class (GiftCard, Credit, etc.) each object is.
-            var settings = new JsonSerializerSettings
-            {
-                TypeNameHandling = TypeNameHandling.Auto,
-                Formatting = Formatting.Indented // Makes the file readable for humans
-            };
-
-            // 1. Serialize: Turn the C# Objects into a Text String
-            string json = JsonConvert.SerializeObject(accounts, settings);
-
-            // 2. Write: Save that text to the hard drive
-            File.WriteAllText(filePath, json);
-        }
-
-        // METHOD: LOAD (The "Thaw" Ray)
+        // OLD: Read from JSON file
+        // NEW: Read from SQL Database
         public static List<BankAccount> LoadAccounts()
         {
-            // 1. Check if the file exists (Can't read what isn't there!)
-            if (!File.Exists(filePath))
+            using (var db = new BankContext())
             {
-                return new List<BankAccount>();
+                // .ToList() executes the SELECT * query automatically
+                return db.BankAccounts.ToList();
             }
+        }
 
-            // 2. Read the text from the file
-            string json = File.ReadAllText(filePath);
-
-            // 3. The Settings (Must match the Save settings!)
-            var settings = new JsonSerializerSettings
+        // OLD: Write to JSON file
+        // NEW: Update or Insert into SQL Database
+        public static void SaveAccounts(List<BankAccount> accounts)
+        {
+            using (var db = new BankContext())
             {
-                TypeNameHandling = TypeNameHandling.Auto
-            };
+                // We use .Update() because it's magic:
+                // 1. If the Account has ID=0, it knows it's NEW -> It does an INSERT.
+                // 2. If the Account has ID>0, it knows it Exists -> It does an UPDATE.
+                db.BankAccounts.UpdateRange(accounts);
 
-            // 4. Deserialize: Turn Text back into C# Objects
-            // It recreates the specific Child classes.
-            var accounts = JsonConvert.DeserializeObject<List<BankAccount>>(json, settings);
-
-            return accounts;
+                // This effectively pushes the "Commit" button on the database
+                db.SaveChanges();
+            }
         }
     }
 }
