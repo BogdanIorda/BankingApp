@@ -18,7 +18,8 @@ while (keepRunning)
     Console.WriteLine("3. Find Custome by Name");
     Console.WriteLine("4. Bank Admin Report");
     Console.WriteLine("5. Transfer Funds");
-    Console.WriteLine("6. Exit");
+    Console.WriteLine("6. Delete Account");
+    Console.WriteLine("7. Exit");
     Console.WriteLine("=================================");
     Console.Write("Select an option: ");
 
@@ -29,7 +30,8 @@ while (keepRunning)
     else if (input == "3") FindCustomer();
     else if (input == "4") BankReport();
     else if (input == "5") TransferFunds();
-    else if (input == "6") keepRunning = false;
+    else if (input == "6") DeleteAccount();
+    else if (input == "7") keepRunning = false;
     else
     {
         Console.WriteLine("Invalid option. Press Enter...");
@@ -217,6 +219,54 @@ void TransferFunds()
         else
         {
             Console.WriteLine("Insufficient funds!");
+        }
+    }
+    WaitForUser();
+}
+
+void DeleteAccount()
+{
+    Console.Clear();
+    Console.WriteLine("--- DELETE ACCOUNT ---");
+    Console.Write("Enter Account ID to DELETE: ");
+
+    if (!int.TryParse(Console.ReadLine(), out int id)) return;
+
+    using (var db = new BankContext())
+    {
+        // 1. find the Account and its Luggage (Transactions)
+        // must use .Include() here. If we don't load the transactions,
+        // can't delete them!
+
+        var accountToDelete = db.BankAccounts.Include(a => a.Transactions).FirstOrDefault(a => a.Id == id);
+
+        if (accountToDelete == null)
+        {
+            Console.WriteLine("Account no found.");
+            WaitForUser();
+            return;
+        }
+
+        Console.WriteLine($"\nWARNING: You are about to delete {accountToDelete.Owner}");
+        Console.WriteLine($"This will delete thier account and {accountToDelete.Transactions.Count} transaction history records.");
+        Console.Write("Are you sure? (Type 'YES' to confirm): ");
+
+        if (Console.ReadLine() == "YES")
+        {
+            // 3. REMOVE THE CHILDREN (Transactions)
+            // tell the database: "Mark all these transactions for deletion"
+            db.Transactions.RemoveRange(accountToDelete.Transactions);
+
+            // 4. REMOVE THE PARENT (Account)
+            db.BankAccounts.Remove(accountToDelete);
+
+            // here actually happens (the deletion)
+            db.SaveChanges();
+            Console.WriteLine("Account and History Deleted.");
+        }
+        else
+        {
+            Console.WriteLine("Cancelled.");
         }
     }
     WaitForUser();
