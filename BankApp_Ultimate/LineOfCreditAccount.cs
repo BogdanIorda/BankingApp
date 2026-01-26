@@ -22,7 +22,7 @@ namespace MyFirstProject
         {
             Balance -= amount;
             var withdrawal = new Transaction(-amount, DateTime.Now, "Withdrawal");
-            allTransactions.Add(withdrawal);
+            Transactions.Add(withdrawal);
         }
     }
 }

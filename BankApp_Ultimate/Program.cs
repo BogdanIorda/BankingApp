@@ -1,37 +1,43 @@
-﻿using BankApp_Ultimate; // Needed to see 'BankContext'
+﻿using BankApp_Ultimate;
 using MyFirstProject;
 using System.Collections.Generic;
-using System.Linq; // Needed for database queries
-
-// ... standard program setup ...
+using System.Linq;
 
 Console.WriteLine("WELCOME TO THE BANKING SIMULATION");
 Console.WriteLine("---------------------------------");
 
-List<BankAccount> sqlAccounts = null;
-
-// --- 🧪 SQL TEST START ---
-// We open a connection to the database
+// STRATEGY: KEEP THE LINE OPEN
+// We use one "db" block for the whole process.
 using (var db = new BankContext())
 {
-    Console.WriteLine("Attempting to connect to SQL Database...");
+    // 1. LOAD
+    Console.WriteLine("Loading accounts from SQL...");
+    var myAccounts = db.BankAccounts.ToList();
+    Console.WriteLine($"Found {myAccounts.Count} accounts.");
 
-    // This single line converts SQL rows into C# Objects!
-    // It's the equivalent of "SELECT * FROM BankAccounts"
-    sqlAccounts = db.BankAccounts.ToList();
-
-    Console.WriteLine($"Success! Found {sqlAccounts.Count} accounts in the database:");
-
-    foreach (var acc in sqlAccounts)
+    // 2. MODIFY (Run the simulation)
+    Console.WriteLine("\nRunning Transactions...");
+    foreach (var account in myAccounts)
     {
-        Console.WriteLine($" - Owner: {acc.Owner} | Balance: {acc.Balance}");
+        // Because 'db' is still open, it watches this happen!
+        // It sees you adding a Transaction to the list.
+        try
+        {
+            account.Withdraw(10); // Charge $10
+            Console.WriteLine($" - Charged $10 fee to {account.Owner}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($" - Error charging {account.Owner}: {ex.Message}");
+        }
     }
+
+    // 3. SAVE
+    Console.WriteLine("\nSaving changes...");
+    db.SaveChanges(); // Writes the new Balances AND the new Transactions
+    Console.WriteLine("Save Complete!");
 }
-Console.WriteLine("Saving changes to SQL Database...");
-DataService.SaveAccounts(sqlAccounts);
-Console.WriteLine("Save Complete!");
 
 Console.WriteLine("---------------------------------");
 Console.WriteLine("Press any key to exit...");
 Console.ReadKey();
-// --- 🧪 SQL TEST END ---

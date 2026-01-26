@@ -9,6 +9,8 @@ namespace BankApp_Ultimate
         // This property tells C# that we have a table called "BankAccounts"
         public DbSet<BankAccount> BankAccounts { get; set; }
 
+        public DbSet<Transaction> Transactions { get; set; }
+
         // This method configures the connection (The "Phone Number" of the database)
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
