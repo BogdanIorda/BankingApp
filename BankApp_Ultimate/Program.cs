@@ -1,43 +1,101 @@
 ﻿using BankApp_Ultimate;
+using Microsoft.EntityFrameworkCore;
 using MyFirstProject;
-using System.Collections.Generic;
+using System;
 using System.Linq;
 
-Console.WriteLine("WELCOME TO THE BANKING SIMULATION");
-Console.WriteLine("---------------------------------");
+Console.Title = "My First Bank App";
+bool keepRunning = true;
 
-// STRATEGY: KEEP THE LINE OPEN
-// We use one "db" block for the whole process.
-using (var db = new BankContext())
+while (keepRunning)
 {
-    // 1. LOAD
-    Console.WriteLine("Loading accounts from SQL...");
-    var myAccounts = db.BankAccounts.ToList();
-    Console.WriteLine($"Found {myAccounts.Count} accounts.");
+    Console.Clear();
+    Console.WriteLine("=================================");
+    Console.WriteLine("   BANK OF C# - MAIN MENU");
+    Console.WriteLine("=================================");
+    Console.WriteLine("1. View All Accounts & History");
+    Console.WriteLine("2. Simulate New Transactions ($10 Fee)");
+    Console.WriteLine("3. Exit");
+    Console.WriteLine("=================================");
+    Console.Write("Select an option: ");
 
-    // 2. MODIFY (Run the simulation)
-    Console.WriteLine("\nRunning Transactions...");
-    foreach (var account in myAccounts)
+    var input = Console.ReadLine();
+
+    if (input == "1")
     {
-        // Because 'db' is still open, it watches this happen!
-        // It sees you adding a Transaction to the list.
-        try
-        {
-            account.Withdraw(10); // Charge $10
-            Console.WriteLine($" - Charged $10 fee to {account.Owner}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($" - Error charging {account.Owner}: {ex.Message}");
-        }
+        ViewHistory();
     }
-
-    // 3. SAVE
-    Console.WriteLine("\nSaving changes...");
-    db.SaveChanges(); // Writes the new Balances AND the new Transactions
-    Console.WriteLine("Save Complete!");
+    else if (input == "2")
+    {
+        RunSimulation();
+    }
+    else if (input == "3")
+    {
+        keepRunning = false;
+    }
+    else
+    {
+        Console.WriteLine("Invalid option. Press Enter...");
+        Console.ReadLine();
+    }
 }
 
-Console.WriteLine("---------------------------------");
-Console.WriteLine("Press any key to exit...");
-Console.ReadKey();
+// ---------------------------------------------------------
+// HELPER METHODS (This keeps the main code clean!)
+// ---------------------------------------------------------
+
+void ViewHistory()
+{
+    Console.Clear();
+    Console.WriteLine("Fetching data from SQL Database...\n");
+
+    using (var db = new BankContext())
+    {
+        // We use .Include to get the history
+        var accounts = db.BankAccounts
+                         .Include(a => a.Transactions)
+                         .ToList();
+
+        foreach (var acc in accounts)
+        {
+            Console.WriteLine($"ACCOUNT: {acc.Owner} (ID: {acc.Id})");
+            Console.WriteLine($"BALANCE: {acc.Balance:C}");
+            Console.WriteLine("HISTORY:");
+            Console.WriteLine(acc.GetAccountHistory());
+            Console.WriteLine("---------------------------------");
+        }
+    }
+    Console.WriteLine("\nPress Enter to return to menu...");
+    Console.ReadLine();
+}
+
+void RunSimulation()
+{
+    Console.Clear();
+    Console.WriteLine("Running Monthly Fee Simulation...\n");
+
+    using (var db = new BankContext())
+    {
+        var accounts = db.BankAccounts.ToList();
+
+        foreach (var acc in accounts)
+        {
+            try
+            {
+                // We add the transaction
+                acc.Withdraw(10);
+                Console.WriteLine($" - Charged $10 to {acc.Owner}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($" - FAILED: {acc.Owner} ({ex.Message})");
+            }
+        }
+
+        Console.WriteLine("\nSaving to Database...");
+        db.SaveChanges();
+        Console.WriteLine("Save Complete!");
+    }
+    Console.WriteLine("\nPress Enter to return to menu...");
+    Console.ReadLine();
+}
