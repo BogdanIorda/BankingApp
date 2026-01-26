@@ -5,6 +5,9 @@ using System;
 using System.Linq;
 
 Console.Title = "My First Bank App";
+
+InitializeDatabase();
+
 bool keepRunning = true;
 
 while (keepRunning)
@@ -26,7 +29,7 @@ while (keepRunning)
     var input = Console.ReadLine();
 
     if (input == "1") ViewHistory();
-    else if (input == "2") RunSimulation();
+    else if (input == "2") await RunSimulation();
     else if (input == "3") FindCustomer();
     else if (input == "4") BankReport();
     else if (input == "5") TransferFunds();
@@ -71,7 +74,8 @@ void ViewHistory()
     WaitForUser();
 }
 
-void RunSimulation()
+// this method uses Async/Await to prevent UI freezing during large database updates
+async Task RunSimulation()
 {
     Console.Clear();
     Console.WriteLine("Running Monthly Fee Simulation...\n");
@@ -95,7 +99,8 @@ void RunSimulation()
         }
 
         Console.WriteLine("\nSaving to Database...");
-        db.SaveChanges();
+
+        await db.SaveChangesAsync();
         Console.WriteLine("Save Complete!");
     }
     WaitForUser();
@@ -270,4 +275,36 @@ void DeleteAccount()
         }
     }
     WaitForUser();
+}
+
+void InitializeDatabase()
+{
+    {
+        using (var db = new BankContext())
+        {
+            var numCustomers = 100;
+
+            // 1. check if we already have customers, STOP.
+            if (db.BankAccounts.Any())
+            {
+                return;
+            }
+
+            Console.WriteLine($"Initializing Databse with {numCustomers} new customers...");
+
+            for (int i = 1; i <= 100; i++)
+            {
+                string name = $"Customer {i}";
+                decimal startBalance = 100 + (i * 10);
+
+                var newAccount = new BankAccount(name, startBalance);
+                newAccount.Withdraw(5);
+
+                db.BankAccounts.Add(newAccount);
+            }
+
+            db.SaveChanges();
+            Console.WriteLine($"Initialization Complete! {numCustomers} Accounts Created.");
+        }
+    }
 }
