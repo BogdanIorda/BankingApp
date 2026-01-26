@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="BankAPI/BankAPI.csproj" Id="63046afc-80cb-40e0-b45c-66abe5d74ffb" />
   <Project Path="BankApp_Ultimate/BankApp_Ultimate.csproj" Id="9ae7694b-241d-40ad-96eb-bc8487f2da0c" />
   <Project Path="MyFirstProject/MyFirstProject.csproj" Id="830b3fee-2c05-4297-9056-d56c40df1e55" />
 </Solution>
