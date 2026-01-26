@@ -17,32 +17,19 @@ while (keepRunning)
     Console.WriteLine("2. Simulate New Transactions ($10 Fee)");
     Console.WriteLine("3. Find Custome by Name");
     Console.WriteLine("4. Bank Admin Report");
-    Console.WriteLine("5. Exit");
+    Console.WriteLine("5. Transfer Funds");
+    Console.WriteLine("6. Exit");
     Console.WriteLine("=================================");
     Console.Write("Select an option: ");
 
     var input = Console.ReadLine();
 
-    if (input == "1")
-    {
-        ViewHistory();
-    }
-    else if (input == "2")
-    {
-        RunSimulation();
-    }
-    else if (input == "3")
-    {
-        FindCustomer();
-    }
-    else if (input == "4")
-    {
-        BankReport();
-    }
-    else if (input == "5")
-    {
-        keepRunning = false;
-    }
+    if (input == "1") ViewHistory();
+    else if (input == "2") RunSimulation();
+    else if (input == "3") FindCustomer();
+    else if (input == "4") BankReport();
+    else if (input == "5") TransferFunds();
+    else if (input == "6") keepRunning = false;
     else
     {
         Console.WriteLine("Invalid option. Press Enter...");
@@ -155,7 +142,7 @@ void BankReport()
         // 1. TOTAL MONEY (Sum)
         // LINQ asks the DB to add up the 'Balance' column for everyone.
         decimal totalVault = db.BankAccounts.Sum(a => a.Balance);
-        Console.WriteLine($"Total Money in Vault: {totalVault:C}"); // what is this :C
+        Console.WriteLine($"Total Money in Vault: {totalVault:C}"); // C to convert into money format and sign
 
         // 2. TOTAL ACCOUNTS (Count)
         int totalAccounts = db.BankAccounts.Count();
@@ -168,12 +155,69 @@ void BankReport()
         Console.WriteLine("\n TOP 3 RICHEST CUSTOMERS:");
         foreach (var acc in richestCustomers)
         {
-            Console.WriteLine($" - {acc.Owner}: {acc.Balance:C}"); // what is this :C
+            Console.WriteLine($" - {acc.Owner}: {acc.Balance:C}");
         }
 
         // 4. TRANSACTION ACTIVITY (Direct Table Access)
         int totalTransactions = db.Transactions.Count();
         Console.WriteLine($"\n Total Transactions processed: {totalTransactions}");
+    }
+    WaitForUser();
+}
+
+void TransferFunds()
+{
+    Console.Clear();
+    Console.WriteLine("--- TRANSFER FUNDS ---");
+
+    using (var db = new BankContext())
+    {
+        // 1. get the sender
+        Console.Write("Enter SENDER Accounter ID: ");
+        if (!int.TryParse(Console.ReadLine(), out int fromId)) return;
+
+        var fromAccount = db.BankAccounts.Find(fromId); // Find() is a shortcut for searching by ID!
+
+        if (fromAccount == null)
+        {
+            Console.WriteLine("Sender Account no found!");
+            WaitForUser();
+            return;
+        }
+
+        // 2. get the receiver
+        Console.Write("Enter RECEIVER Account ID: ");
+        if (!int.TryParse(Console.ReadLine(), out int toId)) return;
+
+        var toAccount = db.BankAccounts.Find(toId);
+
+        if (toAccount == null)
+        {
+            Console.WriteLine("Receiver Account not found!");
+            WaitForUser();
+            return;
+        }
+
+        // 3. get the amount
+        Console.WriteLine($"\nSending from {fromAccount.Owner} ({fromAccount.Balance}) -> to -> {toAccount.Owner}");
+        Console.Write("Enter Amount to Transfer: ");
+        if (!decimal.TryParse(Console.ReadLine(), out decimal amount)) return;
+
+        // 4. the logic
+        // verifing found first
+        if (fromAccount.Balance >= amount)
+        {
+            fromAccount.Withdraw(amount);
+            toAccount.Deposit(amount);
+
+            Console.WriteLine("\nSaving transactio...");
+            db.SaveChanges(); //writes both changes in one go.
+            Console.WriteLine("Transfer Complete!");
+        }
+        else
+        {
+            Console.WriteLine("Insufficient funds!");
+        }
     }
     WaitForUser();
 }
