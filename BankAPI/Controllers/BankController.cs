@@ -32,6 +32,8 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         // 2. if the account doesn't exist, tell the user
         if (account == null) return NotFound("Account not found!");
 
+        if (request.Amount <= 0) return BadRequest("Amount must be pozitive.");
+
         // 3. ppdate the balance
         account.Balance += request.Amount;
 
@@ -56,13 +58,12 @@ public class BankController : ControllerBase // this makes the URL: https://loca
     {
         var account = await _db.BankAccounts.FindAsync(request.AccountId);
 
+        // safety Check:
         if (account == null) return NotFound("Account not found!");
 
-        // safety Check: prevent overdrafts
-        if (account.Balance < request.Amount)
-        {
-            return BadRequest($"Insufficient funds! You only have {account.Balance.ToString("C")}");
-        }
+        if (request.Amount <= 0) return BadRequest("Amount must be positive.");
+
+        if (account.Balance < request.Amount) return BadRequest($"Insufficient funds! You only have {account.Balance.ToString("C")}");
 
         account.Balance -= request.Amount;
 
@@ -89,15 +90,13 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         var receiver = await _db.BankAccounts.FindAsync(request.ToAccountId);
 
         // 2. safety shecks
-        if (sender == null || receiver == null)
-        {
-            return NotFound("One of the accounts does not exist.");
-        }
+        if (sender == null || receiver == null) return NotFound("One of the accounts does not exist.");
 
-        if (sender.Balance < request.Amount)
-        {
-            return BadRequest("Insufficinet funds.");
-        }
+        if (request.Amount <= 0) return BadRequest("Amount must be positive.");
+
+        if (sender.Id == receiver.Id) return BadRequest("You cannot transfer money to yourself.");
+
+        if (sender.Balance < request.Amount) return BadRequest("Insufficinet funds.");
 
         // 3. move the money (In Memory)
         sender.Balance -= request.Amount;
@@ -152,7 +151,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         return Ok(newAccount);
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("delete/{id}")]
     public async Task<IActionResult> DeleteAccount(int id)
     {
         // 1. find the account
