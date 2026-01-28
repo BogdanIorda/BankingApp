@@ -38,13 +38,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         account.Balance += request.Amount;
 
         // record the transaction
-        _db.Transactions.Add(new Transaction
-        {
-            BankAccountId = request.AccountId,
-            Amount = request.Amount,
-            Date = DateTime.Now,
-            Note = "Deposit via API"
-        });
+        CreateTransaction(account.Id, request.Amount, "Deposit via API");
 
         // 4. save the changes back to SQL Server
         await _db.SaveChangesAsync();
@@ -68,13 +62,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         account.Balance -= request.Amount;
 
         // record the transaction
-        _db.Transactions.Add(new Transaction
-        {
-            BankAccountId = request.AccountId,
-            Amount = -request.Amount, // negative for withdrawal
-            Date = DateTime.Now,
-            Note = "Withdrawal via API"
-        });
+        CreateTransaction(account.Id, -request.Amount, "Withdrawal via API");
 
         await _db.SaveChangesAsync();
 
@@ -103,21 +91,10 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         receiver.Balance += request.Amount;
 
         // 4. add "Paper Trail" (History) for BOTH sides
-        _db.Transactions.Add(new Transaction
-        {
-            BankAccountId = sender.Id,
-            Amount = -request.Amount,
-            Date = DateTime.Now,
-            Note = $"Transfer to Account {receiver.Id}"
-        });
 
-        _db.Transactions.Add(new Transaction
-        {
-            BankAccountId = receiver.Id,
-            Amount = request.Amount,
-            Date = DateTime.Now,
-            Note = $"Transfer from Account {sender.Id}"
-        });
+        CreateTransaction(sender.Id, -request.Amount, $"Transfer to Account {receiver.Id}");
+
+        CreateTransaction(receiver.Id, request.Amount, $"Transfer from Account {sender.Id}");
 
         await _db.SaveChangesAsync();
 
@@ -167,6 +144,18 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         await _db.SaveChangesAsync();
 
         return Ok($"Account {id} deleted successfully!");
+    }
+
+    // helper method
+    private void CreateTransaction(int accountId, decimal amount, string note)
+    {
+        _db.Transactions.Add(new Transaction
+        {
+            BankAccountId = accountId,
+            Amount = amount,
+            Date = DateTime.Now,
+            Note = note
+        });
     }
 }
 
