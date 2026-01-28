@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
 
 namespace BankAPI.Controllers;
 
@@ -81,6 +80,51 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         return Ok(account);
     }
 
+    [HttpPost("transfer")]
+    public async Task<IActionResult> Transfer([FromBody] TransferRequest request)
+    {
+        // 1. find the Sender and the Receiver in the database
+
+        var sender = await _db.BankAccounts.FindAsync(request.FromAccountId);
+        var receiver = await _db.BankAccounts.FindAsync(request.ToAccountId);
+
+        // 2. safety shecks
+        if (sender == null || receiver == null)
+        {
+            return NotFound("One of the accounts does not exist.");
+        }
+
+        if (sender.Balance < request.Amount)
+        {
+            return BadRequest("Insufficinet funds.");
+        }
+
+        // 3. move the money (In Memory)
+        sender.Balance -= request.Amount;
+        receiver.Balance += request.Amount;
+
+        // 4. add "Paper Trail" (History) for BOTH sides
+        _db.Transactions.Add(new Transaction
+        {
+            BankAccountId = sender.Id,
+            Amount = -request.Amount,
+            Date = DateTime.Now,
+            Note = $"Transfer to Account {receiver.Id}"
+        });
+
+        _db.Transactions.Add(new Transaction
+        {
+            BankAccountId = receiver.Id,
+            Amount = request.Amount,
+            Date = DateTime.Now,
+            Note = $"Transfer from Account {sender.Id}"
+        });
+
+        await _db.SaveChangesAsync();
+
+        return Ok($"Success! Transferred {request.Amount:C} from {sender.Owner} to {receiver.Owner}.");
+    }
+
     [HttpGet("history/{accountId}")]
     public async Task<IActionResult> GetHistory(int accountId)
     {
@@ -130,6 +174,13 @@ public class BankController : ControllerBase // this makes the URL: https://loca
 public class DepositRequest
 {
     public int AccountId { get; set; }
+    public decimal Amount { get; set; }
+}
+
+public class TransferRequest
+{
+    public int FromAccountId { get; set; }
+    public int ToAccountId { get; set; }
     public decimal Amount { get; set; }
 }
 
