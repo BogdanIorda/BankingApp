@@ -1,6 +1,11 @@
 ﻿using BankAPI.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace BankAPI.Controllers;
 
@@ -17,6 +22,10 @@ public class BankController : ControllerBase // this makes the URL: https://loca
     }
 
     // GET: api/Bank/accounts
+
+    // THE LOCK: You MUST have a valid Token(Badge) to enter here.
+    // If you don't send a token, the API replies with "401 Unauthorized".
+    [Authorize]
     [HttpGet("accounts")]
     public async Task<ActionResult<List<AccountDto>>> GetAllAccounts()
 
@@ -184,20 +193,42 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         // 1. find the user by Name (Owner)
         // use "FirstOrDefault" because there might be no user with that name.
         var user = await _db.BankAccounts.FirstOrDefaultAsync(u => u.Owner == request.Owner);
+        // 2. check User and PIN
 
-        // 2. check if user exists
-        if (user == null)
+        if (user == null || user.Pin != request.Pin)
         {
-            return Unauthorized("User not found.");
+            return Unauthorized("Invalid Owner or PIN.");
         }
 
-        // 3. check if the PIN matches
-        if (user.Pin != request.Pin)
+        // 3. create the "Claims" (The info ON the badge)
+        // put the User's ID and Name inside the token so we know who they are later.
+        var claims = new List<Claim>
         {
-            return Unauthorized("wrong PIN!");
-        }
+            new Claim(ClaimTypes.Name, user.Owner),
+            new Claim("AccountId", user.Id.ToString()) // custom claim for our Bank
+        };
 
-        return Ok($"Welcome back, {user.Owner}! You are logged in.");
+        // 4. create the "Key" (The Secret Stamp)
+        // IN REAL LIFE: Store this in a secure file (appsettings.json), NOT here!
+        // It must be at least 32 characters long.
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("MyTopSecretBankKeyThatIsVeryLongAndSecure123!"));
+
+        // 5. create the Credentials (Signing the badge)
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        // 6. generate the Token Object
+        var token = new JwtSecurityToken(
+            issuer: "BankAPI",
+            audience: "BankUsers",
+            claims: claims,
+            expires: DateTime.Now.AddHours(1), // works for 1 hour
+            signingCredentials: creds
+        );
+
+        // 7. conevert to string and return
+        var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+
+        return Ok(new { token = jwt });
     }
 }
 
