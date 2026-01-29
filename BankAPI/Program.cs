@@ -1,10 +1,10 @@
-using BankAPI; // Make sure this matches your namespace!
+using BankAPI; // make sure this matches your namespace!
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Tell the API about your Bank Database
+// 1. tell the API about your Bank Database
 builder.Services.AddDbContext<BankContext>(options =>
     options.UseSqlServer(@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=BankingDb;Integrated Security=True"));
 

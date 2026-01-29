@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using BankAPI.DTOs;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BankAPI.Controllers;
@@ -15,12 +16,24 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         _db = db;
     }
 
-    // this replaces your "View All Accounts" menu option!
+    // GET: api/Bank/accounts
     [HttpGet("accounts")]
-    public async Task<IActionResult> GetAllAccounts()
+    public async Task<ActionResult<List<AccountDto>>> GetAllAccounts()
+
     {
+        // 1. get the raw data from the database
         var accounts = await _db.BankAccounts.ToListAsync();
-        return Ok(accounts); // this sends the data as json
+
+        // 2. map (convert) them to DTOs
+        // act like a factory: Raw Material -> Finished Product
+        var safeAccounts = accounts.Select(account => new AccountDto
+        {
+            Id = account.Id,
+            Owner = account.Owner,
+            Balance = account.Balance
+        }).ToList();
+
+        return Ok(safeAccounts);
     }
 
     [HttpPost("deposit")]
@@ -110,6 +123,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
             .OrderByDescending(t => t.Date) // newest first
             .ToListAsync();
 
+
         return Ok(history);
     }
 
@@ -124,8 +138,14 @@ public class BankController : ControllerBase // this makes the URL: https://loca
 
         _db.BankAccounts.Add(newAccount);
         await _db.SaveChangesAsync();
+        var accountDto = new AccountDto
+        {
+            Id = newAccount.Id,
+            Owner = newAccount.Owner,
+            Balance = newAccount.Balance
+        };
 
-        return Ok(newAccount);
+        return Ok(accountDto);
     }
 
     [HttpDelete("delete/{id}")]
