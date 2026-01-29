@@ -30,7 +30,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         {
             Id = account.Id,
             Owner = account.Owner,
-            Balance = account.Balance
+            Balance = account.Balance,
         }).ToList();
 
         return Ok(safeAccounts);
@@ -123,7 +123,6 @@ public class BankController : ControllerBase // this makes the URL: https://loca
             .OrderByDescending(t => t.Date) // newest first
             .ToListAsync();
 
-
         return Ok(history);
     }
 
@@ -133,7 +132,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         var newAccount = new BankAccount
         {
             Owner = request.Owner,
-            Balance = request.InitialBalance
+            Balance = request.InitialBalance,
         };
 
         _db.BankAccounts.Add(newAccount);
@@ -142,7 +141,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         {
             Id = newAccount.Id,
             Owner = newAccount.Owner,
-            Balance = newAccount.Balance
+            Balance = newAccount.Balance,
         };
 
         return Ok(accountDto);
@@ -176,6 +175,29 @@ public class BankController : ControllerBase // this makes the URL: https://loca
             Date = DateTime.Now,
             Note = note
         });
+    }
+
+    // POST: api/Bank/login
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginDto request)
+    {
+        // 1. find the user by Name (Owner)
+        // use "FirstOrDefault" because there might be no user with that name.
+        var user = await _db.BankAccounts.FirstOrDefaultAsync(u => u.Owner == request.Owner);
+
+        // 2. check if user exists
+        if (user == null)
+        {
+            return Unauthorized("User not found.");
+        }
+
+        // 3. check if the PIN matches
+        if (user.Pin != request.Pin)
+        {
+            return Unauthorized("wrong PIN!");
+        }
+
+        return Ok($"Welcome back, {user.Owner}! You are logged in.");
     }
 }
 

@@ -19,6 +19,7 @@ namespace BankAPI
         public string Owner { get; set; }
         public string Number { get; }
         public decimal Balance { get; set; }
+        public string Pin { get; set; } = "1234";
 
         // This is a Property because it has { get; set; }
         public List<Transaction> Transactions { get; set; } = new List<Transaction>();
