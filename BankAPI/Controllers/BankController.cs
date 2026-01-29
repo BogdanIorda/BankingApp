@@ -45,50 +45,58 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         return Ok(safeAccounts);
     }
 
+    [Authorize] // <--- 1. Lock (User must be logged in)
     [HttpPost("deposit")]
     public async Task<IActionResult> Deposit([FromBody] DepositRequest request)
     {
-        // 1. find the account in the database using the ID from the web request
-        var account = await _db.BankAccounts.FindAsync(request.AccountId);
+        // 2. READ THE BADGE (Extract User ID from the Token)
+        // The "User" object is created automatically by the [Authorize] lock
+        var idClaim = User.FindFirst("AccountId");
+        if (idClaim == null)
+        {
+            return Unauthorized("Invalid Token: No Account ID found.");
+        }
 
-        // 2. if the account doesn't exist, tell the user
-        if (account == null) return NotFound("Account not found!");
+        // Convert the text ID (from token) to a number
+        int myId = int.Parse(idClaim.Value);
 
-        if (request.Amount <= 0) return BadRequest("Amount must be pozitive.");
+        // 3. Find the account using the ID from the token
+        var account = await _db.BankAccounts.FindAsync(myId);
 
-        // 3. ppdate the balance
+        if (account == null)
+        {
+            return NotFound("Account not found.");
+        }
+        // 4. Update the balance
         account.Balance += request.Amount;
-
-        // record the transaction
-        CreateTransaction(account.Id, request.Amount, "Deposit via API");
-
-        // 4. save the changes back to SQL Server
         await _db.SaveChangesAsync();
 
-        // 5. send back the updated account as JSON so the user sees the new balance
-        return Ok(account);
+        return Ok(new { Message = "Deposit Successful", NewBalance = account.Balance });
     }
 
+    [Authorize] // <--- 1. Locked
     [HttpPost("withdraw")]
-    public async Task<IActionResult> Withdraw([FromBody] DepositRequest request) // using deposit cuz it already contains AccountId and Amount
+    public async Task<IActionResult> Withdraw([FromBody] DepositRequest request)
     {
-        var account = await _db.BankAccounts.FindAsync(request.AccountId);
+        // 2. READ THE BADGE (Get ID from Token)
+        var idClaim = User.FindFirst("AccountId");
+        if (idClaim == null) return Unauthorized("Invalid Token.");
 
-        // safety Check:
-        if (account == null) return NotFound("Account not found!");
+        int myId = int.Parse(idClaim.Value);
 
+        // 3. Find the account
+        var account = await _db.BankAccounts.FindAsync(myId);
+        if (account == null) return NotFound("Account not found.");
+
+        // 4. Safety Checks
         if (request.Amount <= 0) return BadRequest("Amount must be positive.");
+        if (account.Balance < request.Amount) return BadRequest("Insufficient funds!");
 
-        if (account.Balance < request.Amount) return BadRequest($"Insufficient funds! You only have {account.Balance.ToString("C")}");
-
+        // 4. Update the balance
         account.Balance -= request.Amount;
-
-        // record the transaction
-        CreateTransaction(account.Id, -request.Amount, "Withdrawal via API");
-
         await _db.SaveChangesAsync();
 
-        return Ok(account);
+        return Ok(new { Message = "Withdrawal Successful", NewBalance = account.Balance });
     }
 
     [HttpPost("transfer")]
@@ -230,12 +238,6 @@ public class BankController : ControllerBase // this makes the URL: https://loca
 
         return Ok(new { token = jwt });
     }
-}
-
-public class DepositRequest
-{
-    public int AccountId { get; set; }
-    public decimal Amount { get; set; }
 }
 
 public class TransferRequest
