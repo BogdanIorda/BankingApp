@@ -52,10 +52,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         // 2. READ THE BADGE (Extract User ID from the Token)
         // The "User" object is created automatically by the [Authorize] lock
         var idClaim = User.FindFirst("AccountId");
-        if (idClaim == null)
-        {
-            return Unauthorized("Invalid Token: No Account ID found.");
-        }
+        if (idClaim == null) return Unauthorized("Invalid Token: No Account ID found.");
 
         // Convert the text ID (from token) to a number
         int myId = int.Parse(idClaim.Value);
@@ -63,10 +60,8 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         // 3. Find the account using the ID from the token
         var account = await _db.BankAccounts.FindAsync(myId);
 
-        if (account == null)
-        {
-            return NotFound("Account not found.");
-        }
+        if (account == null) return NotFound("Account not found.");
+
         // 4. Update the balance
         account.Balance += request.Amount;
         await _db.SaveChangesAsync();
@@ -99,45 +94,56 @@ public class BankController : ControllerBase // this makes the URL: https://loca
         return Ok(new { Message = "Withdrawal Successful", NewBalance = account.Balance });
     }
 
+    // POST: api/Bank/transfer
+    [Authorize] // <--- 1. Lock
     [HttpPost("transfer")]
     public async Task<IActionResult> Transfer([FromBody] TransferRequest request)
     {
-        // 1. find the Sender and the Receiver in the database
+        // 2. IDENTIFY THE SENDER (From Token)
+        // We read the badge to see who is making the request
+        var idClaim = User.FindFirst("AccountId");
+        if (idClaim == null) return Unauthorized("Invalid Token.");
 
-        var sender = await _db.BankAccounts.FindAsync(request.FromAccountId);
-        var receiver = await _db.BankAccounts.FindAsync(request.ToAccountId);
+        int fromId = int.Parse(idClaim.Value); // <--- SENDER is You (the logged in user)
 
-        // 2. safety shecks
-        if (sender == null || receiver == null) return NotFound("One of the accounts does not exist.");
+        // 3. Indentify the Receiver (From Request)
+        int toId = request.ToAccountId; // <--- RECEIVER is who you typed
+
+        // 4. Prevent self-transfer
+        if (fromId == toId) return BadRequest("You cannot transfer money to yourself");
+
+        // 5. Load both accounts
+        var fromAccount = await _db.BankAccounts.FindAsync(fromId);
+        var toAccount = await _db.BankAccounts.FindAsync(toId);
+
+        if (fromAccount == null || toAccount == null) return NotFound("One of the accounts was not found.");
 
         if (request.Amount <= 0) return BadRequest("Amount must be positive.");
+        if (fromAccount.Balance < request.Amount) return BadRequest("Insufficient funds.");
 
-        if (sender.Id == receiver.Id) return BadRequest("You cannot transfer money to yourself.");
-
-        if (sender.Balance < request.Amount) return BadRequest("Insufficinet funds.");
-
-        // 3. move the money (In Memory)
-        sender.Balance -= request.Amount;
-        receiver.Balance += request.Amount;
-
-        // 4. add "Paper Trail" (History) for BOTH sides
-
-        CreateTransaction(sender.Id, -request.Amount, $"Transfer to Account {receiver.Id}");
-
-        CreateTransaction(receiver.Id, request.Amount, $"Transfer from Account {sender.Id}");
+        fromAccount.Balance -= request.Amount;
+        toAccount.Balance += request.Amount;
 
         await _db.SaveChangesAsync();
 
-        return Ok($"Success! Transferred {request.Amount:C} from {sender.Owner} to {receiver.Owner}.");
+        return Ok(new { Message = "Transfer successful!", RemainingBalance = fromAccount.Balance });
     }
 
-    [HttpGet("history/{accountId}")]
-    public async Task<IActionResult> GetHistory(int accountId)
+    // GET: api/Bank/history
+    [Authorize] // <--- Lock it!
+    [HttpGet("history")]
+    public async Task<ActionResult<List<Transaction>>> GetHistory()
     {
-        // fetch transactions belonging to this specific account ID
+        // 1. Get YOUR ID from the token
+        var idClaim = User.FindFirst("AccountId");
+        if (idClaim == null) return Unauthorized();
+
+        int myId = int.Parse(idClaim.Value);
+
+        // 2. Only get transactions where YOU are the account owner
         var history = await _db.Transactions
-            .Where(t => t.BankAccountId == accountId)
-            .OrderByDescending(t => t.Date) // newest first
+            .Where(t => t.Id == myId)
+            .OrderByDescending(t => t.Date)
             .ToListAsync();
 
         return Ok(history);
