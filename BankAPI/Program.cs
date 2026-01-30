@@ -1,4 +1,5 @@
 using BankAPI; // make sure this matches your namespace!
+using BankAPI.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -35,6 +36,8 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+app.UseMiddleware<GlobalErrorHandling>();
 
 app.MapOpenApi();
 app.MapScalarApiReference();

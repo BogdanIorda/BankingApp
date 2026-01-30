@@ -130,7 +130,7 @@ public class BankController : ControllerBase // this makes the URL: https://loca
     }
 
     // GET: api/Bank/history
-    [Authorize] // <--- Lock it!
+    [Authorize] // <--- Locked
     [HttpGet("history")]
     public async Task<ActionResult<List<Transaction>>> GetHistory()
     {
